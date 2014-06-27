@@ -235,8 +235,7 @@ sub vcl_hash {
 sub vcl_hit {
     # Allow purges
     if (req.method == "PURGE") {
-        purge;
-        return (synth(200, "purged"));
+        return (purge);
     }
 
     return (deliver);
@@ -245,8 +244,7 @@ sub vcl_hit {
 sub vcl_miss {
     # Allow purges
     if (req.method == "PURGE") {
-        purge;
-        return (synth(200, "purged"));
+        return (purge);
     }
 
     return (fetch);
