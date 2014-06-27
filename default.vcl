@@ -78,9 +78,8 @@ sub vcl_recv {
             return (synth(405, "This IP is not allowed to send PURGE requests."));
         }
 
-        # If you got this stage (and didn't error out above), do a cache-lookup
-        # That will force entry into vcl_hit() or vcl_miss() below and purge the actual cache
-        return (hash);
+        # If you got this stage (and didn't error out above), purge the cached result
+        return (purge);
     }
 
     # Only deal with "normal" types
@@ -233,19 +232,11 @@ sub vcl_hash {
 }
 
 sub vcl_hit {
-    # Allow purges
-    if (req.method == "PURGE") {
-        return (purge);
-    }
 
     return (deliver);
 }
 
 sub vcl_miss {
-    # Allow purges
-    if (req.method == "PURGE") {
-        return (purge);
-    }
 
     return (fetch);
 }
