@@ -1,16 +1,12 @@
 vcl 4.0;
-
 # Based on: https://github.com/mattiasgeniar/varnish-4.0-configuration-templates/blob/master/default.vcl
-# Corrected & improved for 4.0.1 by jnerin@gmail.com
-
+# Corrected & improved for 4.0.2 by jnerin@gmail.com
 import std; 
 import directors;
-
 backend server1 { # Define one backend
 	.host = "127.0.0.1"; # IP or Hostname of backend
 	.port = "80"; # Port Apache or whatever is listening
 	.max_connections = 300; # That's it
-
 	.probe = {
 		#.url = "/"; # short easy way (GET /)
 		# We prefer to only do a HEAD /
@@ -28,13 +24,21 @@ backend server1 { # Define one backend
 	.connect_timeout        = 5s;     # How long to wait for a backend connection?
 	.between_bytes_timeout  = 2s;     # How long to wait between bytes received from our backend?
 }
-
 acl purge {
 # ACL we'll use later to allow purges
 	"localhost";
 	"127.0.0.1";
 	"::1";
 }
+
+/*
+acl editors {
+# ACL to honor the "Cache-Control: no-cache" header to force a refresh but only from selected IPs
+	"localhost";
+	"127.0.0.1";
+	"::1";	
+}
+*/
 
 sub vcl_init {
 # Called when VCL is loaded, before any requests pass through it. Typically used to initialize VMODs.
@@ -61,6 +65,9 @@ sub vcl_recv {
 
 	# Normalize the header, remove the port (in case you're testing this on various TCP ports)
 	set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
+	
+	# Normalize the query arguments
+	set req.url = std.querysort(req.url);
 
 	# Allow purging
 	if (req.method == "PURGE") {
@@ -84,6 +91,11 @@ sub vcl_recv {
 		/* Non-RFC2616 or CONNECT which is weird. */
 		return (pipe);
 	}
+
+	# Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
+	if (req.http.Upgrade ~ "(?i)websocket") {
+        	return (pipe);
+     	}
 
 	# Only cache GET or HEAD requests. This makes sure the POST requests are always passed.
 	if (req.method != "GET" && req.method != "HEAD") {
@@ -136,6 +148,9 @@ sub vcl_recv {
 
 	# Normalize Accept-Encoding header
 	# straight from the manual: https://www.varnish-cache.org/docs/3.0/tutorial/vary.html
+	# TODO: Test if it's still needed, Varnish 4 now does this by itself if http_gzip_support = on
+	# https://www.varnish-cache.org/docs/trunk/users-guide/compression.html
+	# https://www.varnish-cache.org/docs/trunk/phk/gzip.html
 	if (req.http.Accept-Encoding) {
 		if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
 			# No point in compressing these
@@ -150,12 +165,23 @@ sub vcl_recv {
 		}
 	}
 
-	# Large static files should be piped, so they are delivered directly to the end-user without
+	if (req.http.Cache-Control ~ "(?i)no-cache") { 
+	#if (req.http.Cache-Control ~ "(?i)no-cache" && client.ip ~ editors) { # create the acl editors if you want to restrict the Ctrl-F5
+	# http://varnish.projects.linpro.no/wiki/VCLExampleEnableForceRefresh
+	# Ignore requests via proxy caches and badly behaved crawlers
+	# like msnbot that send no-cache with every request.
+		if (! (req.http.Via || req.http.User-Agent ~ "(?i)bot" || req.http.X-Purge)) {
+			#set req.hash_always_miss = true; # Doesn't seems to refresh the object in the cache
+			return(purge); # Couple this with restart in vcl_purge and X-Purge header to avoid loops
+		}
+	}
+
+	# Large static files are delivered directly to the end-user without
 	# waiting for Varnish to fully read the file first.
-	# TODO: once the Varnish Streaming branch merges with the master branch, use streaming here to avoid locking.
-	if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip)(\?.*)?$") {
+	# Varnish 4 fully supports Streaming, so set do_stream in vcl_backend_response()
+	if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
 		unset req.http.Cookie;
-		return (pipe);
+		return (hash);
 	}
 
 	# Remove all cookies for static files
@@ -189,6 +215,12 @@ sub vcl_pipe {
 	# applications, like IIS with NTLM authentication.
 
 	#set bereq.http.Connection = "Close";
+
+	# Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
+     	if (req.http.upgrade) {
+        	set bereq.http.upgrade = req.http.upgrade;
+     	}
+
 	return (pipe);
 }
 
@@ -228,13 +260,36 @@ sub vcl_hit {
 	# When several clients are requesting the same page Varnish will send one request to the backend and place the others on hold while fetching one copy from the backend. In some products this is called request coalescing and Varnish does this automatically.
 	# If you are serving thousands of hits per second the queue of waiting requests can get huge. There are two potential problems - one is a thundering herd problem - suddenly releasing a thousand threads to serve content might send the load sky high. Secondly - nobody likes to wait. To deal with this we can instruct Varnish to keep the objects in cache beyond their TTL and to serve the waiting requests somewhat stale content.
 
-	if (!std.healthy(req.backend_hint) && (obj.ttl + obj.grace > 0s)) {
-		return (deliver);
+#	if (!std.healthy(req.backend_hint) && (obj.ttl + obj.grace > 0s)) {
+#		return (deliver);
+#	} else {
+#		return (fetch);
+#	}
+
+	# We have no fresh fish. Lets look at the stale ones.
+	if (std.healthy(req.backend_hint)) {
+		# Backend is healthy. Limit age to 10s.
+	    	if (obj.ttl + 10s > 0s) {
+      			#set req.http.grace = "normal(limited)";
+      			return (deliver);
+	    	} else {
+      			# No candidate for grace. Fetch a fresh object.
+			return(fetch);
+	   	}
 	} else {
-		return (fetch);
+		# backend is sick - use full grace
+    		if (obj.ttl + obj.grace > 0s) {
+      			#set req.http.grace = "full";
+			return (deliver);
+		} else {
+			# no graced object.
+			return (fetch);
+		}
 	}
+
+
 	# fetch & deliver once we get the result
-	return (fetch);	
+	return (fetch);	# Dead code, keep as a safeguard
 }
 
 sub vcl_miss {
@@ -258,6 +313,17 @@ sub vcl_backend_response {
 	# Before you blindly enable this, have a read here: http://mattiasgeniar.be/2012/11/28/stop-caching-static-files/
 	if (bereq.url ~ "^[^?]*\.(bmp|bz2|css|doc|eot|flv|gif|gz|ico|jpeg|jpg|js|less|mp[34]|pdf|png|rar|rtf|swf|tar|tgz|txt|wav|woff|xml|zip)(\?.*)?$") {
 		unset beresp.http.set-cookie;
+	}
+
+
+	# Large static files are delivered directly to the end-user without
+	# waiting for Varnish to fully read the file first.
+	# Varnish 4 fully supports Streaming, so use streaming here to avoid locking.
+	if (bereq.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
+		unset beresp.http.set-cookie;		
+		set beresp.do_stream = true; 	# Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if 
+						# the backend doesn't send a Content-Length header, so only enable it for big objects
+		set beresp.do_gzip = false;	# Don't try to compress it for storage
 	}
 
 	# Sometimes, a 301 or 302 redirect formed via Apache's mod_rewrite can mess with the HTTP port that is being passed along.
@@ -294,6 +360,9 @@ sub vcl_deliver {
 	} else {
 		set resp.http.X-Cache = "MISS";
 	}
+	# Please note that obj.hits behaviour changed in 4.0, now it counts per objecthead, not per object
+	# and obj.hits may not be reset in some cases where bans are in use. See bug 1492 for details.
+	# So take hits with a grain of salt
 	set resp.http.X-Cache-Hits = obj.hits;
 
 	# Remove some headers: PHP version
@@ -307,6 +376,12 @@ sub vcl_deliver {
 	unset resp.http.Link;
 
 	return (deliver);
+}
+
+sub vcl_purge {
+    # restart request
+    set req.http.X-Purge = "Yes";
+    return(restart);
 }
 
 sub vcl_synth {
