@@ -1,7 +1,7 @@
 vcl 4.0;
 # Based on: https://github.com/mattiasgeniar/varnish-4.0-configuration-templates/blob/master/default.vcl
 # Corrected & improved for 4.0.2 by jnerin@gmail.com
-import std; 
+import std;
 import directors;
 backend server1 { # Define one backend
 	.host = "127.0.0.1"; # IP or Hostname of backend
@@ -10,10 +10,10 @@ backend server1 { # Define one backend
 	.probe = {
 		#.url = "/"; # short easy way (GET /)
 		# We prefer to only do a HEAD /
-		.request = 
+		.request =
 			"HEAD / HTTP/1.1"
 			"Host: localhost"
-			"Connection: close";      	
+			"Connection: close";
 		.interval = 5s; # check the health of each backend every 5 seconds
 		.timeout = 1s; # timing out after 1 second.
 		# If 3 out of the last 5 polls succeeded the backend is considered healthy, otherwise it will be marked as sick
@@ -36,7 +36,7 @@ acl editors {
 # ACL to honor the "Cache-Control: no-cache" header to force a refresh but only from selected IPs
 	"localhost";
 	"127.0.0.1";
-	"::1";	
+	"::1";
 }
 */
 
@@ -65,7 +65,7 @@ sub vcl_recv {
 
 	# Normalize the header, remove the port (in case you're testing this on various TCP ports)
 	set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
-	
+
 	# Normalize the query arguments
 	set req.url = std.querysort(req.url);
 
@@ -136,7 +136,7 @@ sub vcl_recv {
 	set req.http.Cookie = regsuball(req.http.Cookie, "__qc.=[^;]+(; )?", "");
 
 	# Remove the AddThis cookies
-	set req.http.Cookie = regsuball(req.http.Cookie, "__atuvc=[^;]+(; )?", "");
+	set req.http.Cookie = regsuball(req.http.Cookie, "__atuv.=[^;]+(; )?", "");
 
 	# Remove a ";" prefix in the cookie if present
 	set req.http.Cookie = regsuball(req.http.Cookie, "^;\s*", "");
@@ -165,7 +165,7 @@ sub vcl_recv {
 		}
 	}
 
-	if (req.http.Cache-Control ~ "(?i)no-cache") { 
+	if (req.http.Cache-Control ~ "(?i)no-cache") {
 	#if (req.http.Cache-Control ~ "(?i)no-cache" && client.ip ~ editors) { # create the acl editors if you want to restrict the Ctrl-F5
 	# http://varnish.projects.linpro.no/wiki/VCLExampleEnableForceRefresh
 	# Ignore requests via proxy caches and badly behaved crawlers
@@ -320,8 +320,8 @@ sub vcl_backend_response {
 	# waiting for Varnish to fully read the file first.
 	# Varnish 4 fully supports Streaming, so use streaming here to avoid locking.
 	if (bereq.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
-		unset beresp.http.set-cookie;		
-		set beresp.do_stream = true; 	# Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if 
+		unset beresp.http.set-cookie;
+		set beresp.do_stream = true; 	# Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if
 						# the backend doesn't send a Content-Length header, so only enable it for big objects
 		set beresp.do_gzip = false;	# Don't try to compress it for storage
 	}
