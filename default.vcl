@@ -132,6 +132,9 @@ sub vcl_recv {
 	set req.http.Cookie = regsuball(req.http.Cookie, "utmcmd.=[^;]+(; )?", "");
 	set req.http.Cookie = regsuball(req.http.Cookie, "utmccn.=[^;]+(; )?", "");
 
+	# Remove DoubleClick offensive cookies
+  set req.http.Cookie = regsuball(req.http.Cookie, "__gads=[^;]+(; )?", "");
+
 	# Remove the Quant Capital cookies (added by some plugin, all __qca)
 	set req.http.Cookie = regsuball(req.http.Cookie, "__qc.=[^;]+(; )?", "");
 
