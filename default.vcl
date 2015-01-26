@@ -382,9 +382,12 @@ sub vcl_deliver {
 }
 
 sub vcl_purge {
-    # restart request
-    set req.http.X-Purge = "Yes";
-    return(restart);
+    // in case this is the editors hitting CTRL+F5, show them fresh stuff
+    if (req.method == "PURGE") {
+        # restart request
+        set req.http.X-Purge = "Yes";
+        return(restart);
+    }
 }
 
 sub vcl_synth {
