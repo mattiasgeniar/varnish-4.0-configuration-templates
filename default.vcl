@@ -383,7 +383,7 @@ sub vcl_deliver {
 
 sub vcl_purge {
     // in case this is the editors hitting CTRL+F5, show them fresh stuff
-    if (req.method == "PURGE") {
+    if (req.method != "PURGE") {
         # restart request
         set req.http.X-Purge = "Yes";
         return(restart);
