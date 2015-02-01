@@ -8,7 +8,7 @@ You can use the configuration templates found in this repository to quickly get 
 
 A set of configuration samples used for Varnish 4.0. This includes templates for:
 * Wordpress
-* Drupal (works decently for Drupal 7, depends on your addons obviously)
+* Drupal (works decently for Drupal 7, depends on your modules obviously)
 * Joomla (WIP)
 * Fork CMS
 * OpenPhoto
