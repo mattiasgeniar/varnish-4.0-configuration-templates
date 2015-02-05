@@ -377,6 +377,7 @@ sub vcl_deliver {
   unset resp.http.X-Varnish;
   unset resp.http.Via;
   unset resp.http.Link;
+  unset resp.http.X-Generator;
 
   return (deliver);
 }
