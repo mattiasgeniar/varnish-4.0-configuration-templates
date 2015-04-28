@@ -1,12 +1,14 @@
 vcl 4.0;
 # Based on: https://github.com/mattiasgeniar/varnish-4.0-configuration-templates/blob/master/default.vcl
-# Corrected & improved for 4.0.2 by jnerin@gmail.com
+
 import std;
 import directors;
+
 backend server1 { # Define one backend
-  .host = "127.0.0.1"; # IP or Hostname of backend
-  .port = "80"; # Port Apache or whatever is listening
+  .host = "127.0.0.1";    # IP or Hostname of backend
+  .port = "80";           # Port Apache or whatever is listening
   .max_connections = 300; # That's it
+
   .probe = {
     #.url = "/"; # short easy way (GET /)
     # We prefer to only do a HEAD /
@@ -16,14 +18,17 @@ backend server1 { # Define one backend
       "Connection: close";
     .interval = 5s; # check the health of each backend every 5 seconds
     .timeout = 1s; # timing out after 1 second.
+
     # If 3 out of the last 5 polls succeeded the backend is considered healthy, otherwise it will be marked as sick
     .window = 5;
     .threshold = 3;
-    }
+  }
+
   .first_byte_timeout     = 300s;   # How long to wait before we receive a first byte from our backend?
   .connect_timeout        = 5s;     # How long to wait for a backend connection?
   .between_bytes_timeout  = 2s;     # How long to wait between bytes received from our backend?
 }
+
 acl purge {
 # ACL we'll use later to allow purges
   "localhost";
@@ -94,8 +99,8 @@ sub vcl_recv {
 
   # Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
   if (req.http.Upgrade ~ "(?i)websocket") {
-          return (pipe);
-      }
+    return (pipe);
+  }
 
   # Only cache GET or HEAD requests. This makes sure the POST requests are always passed.
   if (req.method != "GET" && req.method != "HEAD") {
@@ -208,7 +213,11 @@ sub vcl_recv {
 }
 
 sub vcl_pipe {
-# Called upon entering pipe mode. In this mode, the request is passed on to the backend, and any further data from both the client and backend is passed on unaltered until either end closes the connection. Basically, Varnish will degrade into a simple TCP proxy, shuffling bytes back and forth. For a connection in pipe mode, no other VCL subroutine will ever get called after vcl_pipe.
+  # Called upon entering pipe mode.
+  # In this mode, the request is passed on to the backend, and any further data from both the client
+  # and backend is passed on unaltered until either end closes the connection. Basically, Varnish will
+  # degrade into a simple TCP proxy, shuffling bytes back and forth. For a connection in pipe mode,
+  # no other VCL subroutine will ever get called after vcl_pipe.
 
   # Note that only the first request to the backend will have
   # X-Forwarded-For set.  If you use X-Forwarded-For and want to
@@ -217,25 +226,28 @@ sub vcl_pipe {
   # here.  It is not set by default as it might break some broken web
   # applications, like IIS with NTLM authentication.
 
-  #set bereq.http.Connection = "Close";
+  # set bereq.http.Connection = "Close";
 
   # Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
-      if (req.http.upgrade) {
-          set bereq.http.upgrade = req.http.upgrade;
-      }
+  if (req.http.upgrade) {
+    set bereq.http.upgrade = req.http.upgrade;
+  }
 
   return (pipe);
 }
 
 sub vcl_pass {
-# Called upon entering pass mode. In this mode, the request is passed on to the backend, and the backend's response is passed on to the client, but is not entered into the cache. Subsequent requests submitted over the same client connection are handled normally.
+  # Called upon entering pass mode. In this mode, the request is passed on to the backend, and the
+  # backend's response is passed on to the client, but is not entered into the cache. Subsequent
+  # requests submitted over the same client connection are handled normally.
 
   # return (pass);
 }
 
 # The data on which the hashing will take place
 sub vcl_hash {
-# Called after vcl_recv to create a hash value for the request. This is used as a key to look up the object in Varnish.
+  # Called after vcl_recv to create a hash value for the request. This is used as a key
+  # to look up the object in Varnish.
 
   hash_data(req.url);
 
@@ -252,7 +264,7 @@ sub vcl_hash {
 }
 
 sub vcl_hit {
-# Called when a cache lookup is successful.
+  # Called when a cache lookup is successful.
 
   if (obj.ttl >= 0s) {
     # A pure unadultered hit, deliver it
@@ -272,17 +284,17 @@ sub vcl_hit {
   # We have no fresh fish. Lets look at the stale ones.
   if (std.healthy(req.backend_hint)) {
     # Backend is healthy. Limit age to 10s.
-        if (obj.ttl + 10s > 0s) {
-            #set req.http.grace = "normal(limited)";
-            return (deliver);
-        } else {
-            # No candidate for grace. Fetch a fresh object.
+    if (obj.ttl + 10s > 0s) {
+      #set req.http.grace = "normal(limited)";
+      return (deliver);
+    } else {
+      # No candidate for grace. Fetch a fresh object.
       return(fetch);
-      }
+    }
   } else {
     # backend is sick - use full grace
-        if (obj.ttl + obj.grace > 0s) {
-            #set req.http.grace = "full";
+      if (obj.ttl + obj.grace > 0s) {
+      #set req.http.grace = "full";
       return (deliver);
     } else {
       # no graced object.
@@ -290,20 +302,21 @@ sub vcl_hit {
     }
   }
 
-
   # fetch & deliver once we get the result
   return (fetch); # Dead code, keep as a safeguard
 }
 
 sub vcl_miss {
-# Called after a cache lookup if the requested document was not found in the cache. Its purpose is to decide whether or not to attempt to retrieve the document from the backend, and which backend to use.
+  # Called after a cache lookup if the requested document was not found in the cache. Its purpose
+  # is to decide whether or not to attempt to retrieve the document from the backend, and which
+  # backend to use.
 
   return (fetch);
 }
 
 # Handle the HTTP request coming from our backend
 sub vcl_backend_response {
-# Called after the response headers has been successfully retrieved from the backend.
+  # Called after the response headers has been successfully retrieved from the backend.
 
   # Pause ESI request and remove Surrogate-Control header
   if (beresp.http.Surrogate-Control ~ "ESI/1.0") {
@@ -318,15 +331,13 @@ sub vcl_backend_response {
     unset beresp.http.set-cookie;
   }
 
-
   # Large static files are delivered directly to the end-user without
   # waiting for Varnish to fully read the file first.
   # Varnish 4 fully supports Streaming, so use streaming here to avoid locking.
   if (bereq.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
     unset beresp.http.set-cookie;
-    set beresp.do_stream = true;  # Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if
-            # the backend doesn't send a Content-Length header, so only enable it for big objects
-    set beresp.do_gzip = false; # Don't try to compress it for storage
+    set beresp.do_stream = true;  # Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if the backend doesn't send a Content-Length header, so only enable it for big objects
+    set beresp.do_gzip = false;   # Don't try to compress it for storage
   }
 
   # Sometimes, a 301 or 302 redirect formed via Apache's mod_rewrite can mess with the HTTP port that is being passed along.
@@ -356,13 +367,14 @@ sub vcl_backend_response {
 # The routine when we deliver the HTTP request to the user
 # Last chance to modify headers that are sent to the client
 sub vcl_deliver {
-# Called before a cached object is delivered to the client.
+  # Called before a cached object is delivered to the client.
 
   if (obj.hits > 0) { # Add debug header to see if it's a HIT/MISS and the number of hits, disable when not needed
     set resp.http.X-Cache = "HIT";
   } else {
     set resp.http.X-Cache = "MISS";
   }
+
   # Please note that obj.hits behaviour changed in 4.0, now it counts per objecthead, not per object
   # and obj.hits may not be reset in some cases where bans are in use. See bug 1492 for details.
   # So take hits with a grain of salt
@@ -410,7 +422,8 @@ sub vcl_synth {
 
 
 sub vcl_fini {
-# Called when VCL is discarded only after all requests have exited the VCL. Typically used to clean up VMODs.
+  # Called when VCL is discarded only after all requests have exited the VCL.
+  # Typically used to clean up VMODs.
 
   return (ok);
 }
