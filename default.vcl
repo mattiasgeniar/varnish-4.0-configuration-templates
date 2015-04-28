@@ -16,11 +16,10 @@ backend server1 { # Define one backend
       "HEAD / HTTP/1.1"
       "Host: localhost"
       "Connection: close";
-    .interval = 5s; # check the health of each backend every 5 seconds
-    .timeout = 1s; # timing out after 1 second.
 
-    # If 3 out of the last 5 polls succeeded the backend is considered healthy, otherwise it will be marked as sick
-    .window = 5;
+    .interval  = 5s; # check the health of each backend every 5 seconds
+    .timeout   = 1s; # timing out after 1 second.
+    .window    = 5;  # If 3 out of the last 5 polls succeeded the backend is considered healthy, otherwise it will be marked as sick
     .threshold = 3;
   }
 
@@ -30,7 +29,7 @@ backend server1 { # Define one backend
 }
 
 acl purge {
-# ACL we'll use later to allow purges
+  # ACL we'll use later to allow purges
   "localhost";
   "127.0.0.1";
   "::1";
@@ -38,7 +37,7 @@ acl purge {
 
 /*
 acl editors {
-# ACL to honor the "Cache-Control: no-cache" header to force a refresh but only from selected IPs
+  # ACL to honor the "Cache-Control: no-cache" header to force a refresh but only from selected IPs
   "localhost";
   "127.0.0.1";
   "::1";
@@ -46,7 +45,8 @@ acl editors {
 */
 
 sub vcl_init {
-# Called when VCL is loaded, before any requests pass through it. Typically used to initialize VMODs.
+  # Called when VCL is loaded, before any requests pass through it.
+  # Typically used to initialize VMODs.
 
   new vdir = directors.round_robin();
   vdir.add_backend(server1);
@@ -55,8 +55,10 @@ sub vcl_init {
 }
 
 sub vcl_recv {
-# Called at the beginning of a request, after the complete request has been received and parsed. Its purpose is to decide whether or not to serve the request, how to do it, and, if applicable, which backend to use.
-# also used to modify the request
+  # Called at the beginning of a request, after the complete request has been received and parsed.
+  # Its purpose is to decide whether or not to serve the request, how to do it, and, if applicable,
+  # which backend to use.
+  # also used to modify the request
 
   set req.backend_hint = vdir.backend(); # send all traffic to the vdir director
 
