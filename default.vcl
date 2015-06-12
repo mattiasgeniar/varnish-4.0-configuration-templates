@@ -135,6 +135,7 @@ sub vcl_recv {
   # Remove any Google Analytics based cookies
   set req.http.Cookie = regsuball(req.http.Cookie, "__utm.=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "_ga=[^;]+(; )?", "");
+  set req.http.Cookie = regsuball(req.http.Cookie, "_gat=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "utmctr=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "utmcmd.=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "utmccn.=[^;]+(; )?", "");
