@@ -62,14 +62,6 @@ sub vcl_recv {
 
   set req.backend_hint = vdir.backend(); # send all traffic to the vdir director
 
-  if (req.restarts == 0) {
-    if (req.http.X-Forwarded-For) { # set or append the client.ip to X-Forwarded-For header
-      set req.http.X-Forwarded-For = req.http.X-Forwarded-For + ", " + client.ip;
-    } else {
-      set req.http.X-Forwarded-For = client.ip;
-    }
-  }
-
   # Normalize the header, remove the port (in case you're testing this on various TCP ports)
   set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
 
