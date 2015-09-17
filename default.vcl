@@ -149,25 +149,6 @@ sub vcl_recv {
     unset req.http.cookie;
   }
 
-  # Normalize Accept-Encoding header
-  # straight from the manual: https://www.varnish-cache.org/docs/3.0/tutorial/vary.html
-  # TODO: Test if it's still needed, Varnish 4 now does this by itself if http_gzip_support = on
-  # https://www.varnish-cache.org/docs/trunk/users-guide/compression.html
-  # https://www.varnish-cache.org/docs/trunk/phk/gzip.html
-  if (req.http.Accept-Encoding) {
-    if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
-      # No point in compressing these
-      unset req.http.Accept-Encoding;
-    } elsif (req.http.Accept-Encoding ~ "gzip") {
-      set req.http.Accept-Encoding = "gzip";
-    } elsif (req.http.Accept-Encoding ~ "deflate") {
-      set req.http.Accept-Encoding = "deflate";
-    } else {
-      # unkown algorithm
-      unset req.http.Accept-Encoding;
-    }
-  }
-
   if (req.http.Cache-Control ~ "(?i)no-cache") {
   #if (req.http.Cache-Control ~ "(?i)no-cache" && client.ip ~ editors) { # create the acl editors if you want to restrict the Ctrl-F5
   # http://varnish.projects.linpro.no/wiki/VCLExampleEnableForceRefresh
