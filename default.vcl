@@ -15,7 +15,8 @@ backend server1 { # Define one backend
     .request =
       "HEAD / HTTP/1.1"
       "Host: localhost"
-      "Connection: close";
+      "Connection: close"
+      "User-Agent: Varnish Health Probe";
 
     .interval  = 5s; # check the health of each backend every 5 seconds
     .timeout   = 1s; # timing out after 1 second.
