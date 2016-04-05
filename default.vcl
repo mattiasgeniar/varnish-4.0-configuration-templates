@@ -255,7 +255,7 @@ sub vcl_hit {
 # if (!std.healthy(req.backend_hint) && (obj.ttl + obj.grace > 0s)) {
 #   return (deliver);
 # } else {
-#   return (miss);
+#   return (fetch);
 # }
 
   # We have no fresh fish. Lets look at the stale ones.
@@ -266,7 +266,7 @@ sub vcl_hit {
       return (deliver);
     } else {
       # No candidate for grace. Fetch a fresh object.
-      return(miss);
+      return(fetch);
     }
   } else {
     # backend is sick - use full grace
@@ -275,12 +275,12 @@ sub vcl_hit {
       return (deliver);
     } else {
       # no graced object.
-      return (miss);
+      return (fetch);
     }
   }
 
   # fetch & deliver once we get the result
-  return (miss); # Dead code, keep as a safeguard
+  return (fetch); # Dead code, keep as a safeguard
 }
 
 sub vcl_miss {
