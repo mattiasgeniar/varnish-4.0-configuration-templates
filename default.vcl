@@ -92,7 +92,8 @@ sub vcl_recv {
       req.method != "PATCH" &&
       req.method != "DELETE") {
     /* Non-RFC2616 or CONNECT which is weird. */
-    return (pipe);
+    /*Why send the packet upstream, while the visitor is using a non-valid HTTP method? */
+    return(synth(404, "Non-valid HTTP method!"));
   }
 
   # Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
