@@ -278,8 +278,9 @@ sub vcl_hit {
       #set req.http.grace = "full";
       return (deliver);
     } else {
-      # no graced object.
-      return (fetch);
+      # no graced object and the backend is still not healthy so lets prompt users with a custom error page.
+      # In this example we use a very simple error page, please create something better :).
+      return(synth(503, "We are experiencing an internal error, please contact the sysadmin. "));
     }
   }
 
