@@ -93,7 +93,7 @@ sub vcl_recv {
       req.method != "DELETE") {
     /* Non-RFC2616 or CONNECT which is weird. */
     /*Why send the packet upstream, while the visitor is using a non-valid HTTP method? */
-    return(synth(404, "Non-valid HTTP method!"));
+    return (synth(404, "Non-valid HTTP method!"));
   }
 
   # Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
@@ -161,7 +161,7 @@ sub vcl_recv {
   # like msnbot that send no-cache with every request.
     if (! (req.http.Via || req.http.User-Agent ~ "(?i)bot" || req.http.X-Purge)) {
       #set req.hash_always_miss = true; # Doesn't seems to refresh the object in the cache
-      return(purge); # Couple this with restart in vcl_purge and X-Purge header to avoid loops
+      return (purge); # Couple this with restart in vcl_purge and X-Purge header to avoid loops
     }
   }
 
@@ -259,7 +259,7 @@ sub vcl_hit {
 # if (!std.healthy(req.backend_hint) && (obj.ttl + obj.grace > 0s)) {
 #   return (deliver);
 # } else {
-#   return (fetch);
+#   return (miss);
 # }
 
   # We have no fresh fish. Lets look at the stale ones.
@@ -270,7 +270,7 @@ sub vcl_hit {
       return (deliver);
     } else {
       # No candidate for grace. Fetch a fresh object.
-      return(fetch);
+      return (miss);
     }
   } else {
     # backend is sick - use full grace
@@ -279,12 +279,12 @@ sub vcl_hit {
       return (deliver);
     } else {
       # no graced object.
-      return (fetch);
+      return (miss);
     }
   }
 
   # fetch & deliver once we get the result
-  return (fetch); # Dead code, keep as a safeguard
+  return (miss); # Dead code, keep as a safeguard
 }
 
 sub vcl_miss {
@@ -384,7 +384,7 @@ sub vcl_purge {
   if (req.method != "PURGE") {
     # restart request
     set req.http.X-Purge = "Yes";
-    return(restart);
+    return (restart);
   }
 }
 
