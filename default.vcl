@@ -330,16 +330,16 @@ sub vcl_backend_response {
     set beresp.http.Location = regsub(beresp.http.Location, ":[0-9]+", "");
   }
 
+  # Don't cache 50x responses
+  if (beresp.status == 500 || beresp.status == 502 || beresp.status == 503 || beresp.status == 504) {
+    return (abandon);
+  }
+
   # Set 2min cache if unset for static files
   if (beresp.ttl <= 0s || beresp.http.Set-Cookie || beresp.http.Vary == "*") {
     set beresp.ttl = 120s; # Important, you shouldn't rely on this, SET YOUR HEADERS in the backend
     set beresp.uncacheable = true;
     return (deliver);
-  }
-
-  # Don't cache 50x responses
-  if (beresp.status == 500 || beresp.status == 502 || beresp.status == 503 || beresp.status == 504) {
-    return (abandon);
   }
 
   # Allow stale content, in case the backend goes down.
