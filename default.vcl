@@ -108,8 +108,8 @@ sub vcl_recv {
 
   # Some generic URL manipulation, useful for all templates that follow
   # First remove URL parameters used to track effectiveness of online marketing campaigns
-  if (req.url ~ "(\?|&)(utm_[a-z]+|gclid|cx|ie|cof|siteurl)=") {
-      set req.url = regsuball(req.url, "(utm_[a-z]+|gclid|cx|ie|cof|siteurl)=[-_A-z0-9+()%.]+&?", "");
+  if (req.url ~ "(\?|&)(utm_[a-z]+|gclid|cx|ie|cof|siteurl|fbclid)=") {
+      set req.url = regsuball(req.url, "(utm_[a-z]+|gclid|cx|ie|cof|siteurl|fbclid)=[-_A-z0-9+()%.]+&?", "");
       set req.url = regsub(req.url, "[?|&]+$", "");
   }
 
