@@ -107,12 +107,10 @@ sub vcl_recv {
   }
 
   # Some generic URL manipulation, useful for all templates that follow
-  # First remove the Google Analytics added parameters, useless for our backend
-  if (req.url ~ "(\?|&)(utm_source|utm_medium|utm_campaign|utm_content|gclid|cx|ie|cof|siteurl)=") {
-    set req.url = regsuball(req.url, "&(utm_source|utm_medium|utm_campaign|utm_content|gclid|cx|ie|cof|siteurl)=([A-z0-9_\-\.%25]+)", "");
-    set req.url = regsuball(req.url, "\?(utm_source|utm_medium|utm_campaign|utm_content|gclid|cx|ie|cof|siteurl)=([A-z0-9_\-\.%25]+)", "?");
-    set req.url = regsub(req.url, "\?&", "?");
-    set req.url = regsub(req.url, "\?$", "");
+  # First remove URL parameters used to track effectiveness of online marketing campaigns
+  if (req.url ~ "(\?|&)(utm_[a-z]+|gclid|cx|ie|cof|siteurl)=") {
+      set req.url = regsuball(req.url, "(utm_[a-z]+|gclid|cx|ie|cof|siteurl)=[-_A-z0-9+()%.]+&?", "");
+      set req.url = regsub(req.url, "[?|&]+$", "");
   }
 
   # Strip hash, server doesn't need it.
