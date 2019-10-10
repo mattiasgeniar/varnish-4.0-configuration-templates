@@ -1,5 +1,9 @@
 ## Varnish Configuration Templates (boilerplate)
 
+### 🚀 Need help implementing Varnish?
+
+I'm available [for consultancy](https://ma.ttias.be/consultancy/) if you're struggling with implementing Varnish and speeding up your site. Don't be afraid to [reach out!](https://ma.ttias.be/consultancy/)
+
 ### Installation
 
 You can use the configuration templates found in this repository to quickly get started with a complete Varnish configuration that offers support for most functionality. Start of by looking into "default.vcl" and taking the bits you need, copy it to your own default.vcl.
